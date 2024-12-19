@@ -111,7 +111,7 @@ export class ImageOptimizationStack extends Stack {
           comment: "image optimization - sample website",
           defaultRootObject: "index.html",
           defaultBehavior: {
-            origin: new origins.S3Origin(sampleWebsiteBucket),
+            origin: origins.S3BucketOrigin.withOriginAccessControl(sampleWebsiteBucket),
             viewerProtocolPolicy:
               cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           },
@@ -231,7 +231,7 @@ export class ImageOptimizationStack extends Stack {
 
     if (transformedImageBucket) {
       imageOrigin = new origins.OriginGroup({
-        primaryOrigin: new origins.S3Origin(transformedImageBucket, {
+        primaryOrigin: origins.S3BucketOrigin.withOriginAccessControl(transformedImageBucket, {
           originShieldRegion: CLOUDFRONT_ORIGIN_SHIELD_REGION,
         }),
         fallbackOrigin: new origins.HttpOrigin(imageProcessingDomainName, {
