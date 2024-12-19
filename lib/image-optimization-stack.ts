@@ -76,7 +76,7 @@ export class ImageOptimizationStack extends Stack {
       S3_TRANSFORMED_IMAGE_CACHE_TTL;
     S3_IMAGE_BUCKET_NAME =
       this.node.tryGetContext("S3_IMAGE_BUCKET_NAME") || S3_IMAGE_BUCKET_NAME;
-    CLOUDFRONT_ORIGIN_SHIELD_REGION =
+    CLOUDFRONT_ORIGIN_SHIELD_REGION = this.region ||
       this.node.tryGetContext("CLOUDFRONT_ORIGIN_SHIELD_REGION") ||
       CLOUDFRONT_ORIGIN_SHIELD_REGION;
     CLOUDFRONT_CORS_ENABLED =

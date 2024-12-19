@@ -5,7 +5,7 @@
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/origin-shield.html
 
 // Regions with Regional Edge Caches
-const REC_REGIONS = {
+export const REC_REGIONS = {
   US_EAST_2: "us-east-2",             //  1. US East (Ohio)
   US_EAST_1: "us-east-1",             //  2. US East (N. Virginia) 
   US_WEST_2: "us-west-2",             //  3. US West (Oregon) 
@@ -21,7 +21,7 @@ const REC_REGIONS = {
 };
 
 // Other supported regions
-const OTHER_REGIONS = {
+export const OTHER_REGIONS = {
   US_WEST_1: "us-west-1",             // 13. US West (N. California)
   AF_SOUTH_1: "af-south-1",           // 14. Africa (Cape Town)
   AP_EAST_1: "ap-east-1",             // 15. Asia Pacific (Hong Kong)
