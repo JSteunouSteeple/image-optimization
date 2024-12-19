@@ -19,7 +19,6 @@ import {
 import { CfnDistribution } from "aws-cdk-lib/aws-cloudfront";
 import { Construct } from "constructs";
 import "dotenv/config";
-import { getOriginShieldRegion } from "./origin-shield";
 
 // Stack Parameters
 
@@ -28,9 +27,6 @@ let STORE_TRANSFORMED_IMAGES = "true";
 // Parameters of S3 bucket where original images are stored
 let S3_IMAGE_BUCKET_NAME: string = "";
 // CloudFront parameters
-let CLOUDFRONT_ORIGIN_SHIELD_REGION = getOriginShieldRegion(
-  process.env.AWS_REGION || process.env.CDK_DEFAULT_REGION || "eu-west-1"
-);
 let CLOUDFRONT_CORS_ENABLED = "true";
 // Parameters of transformed images
 let S3_TRANSFORMED_IMAGE_EXPIRATION_DURATION = "90";
@@ -41,8 +37,6 @@ let MAX_IMAGE_SIZE = "4700000";
 // Lambda Parameters
 let LAMBDA_MEMORY = "1500";
 let LAMBDA_TIMEOUT = "60";
-// Whether to deploy a sample website referenced in https://aws.amazon.com/blogs/networking-and-content-delivery/image-optimization-using-amazon-cloudfront-and-aws-lambda/
-let DEPLOY_SAMPLE_WEBSITE = "false";
 
 type ImageDeliveryCacheBehaviorConfig = {
   origin: any;
@@ -76,9 +70,6 @@ export class ImageOptimizationStack extends Stack {
       S3_TRANSFORMED_IMAGE_CACHE_TTL;
     S3_IMAGE_BUCKET_NAME =
       this.node.tryGetContext("S3_IMAGE_BUCKET_NAME") || S3_IMAGE_BUCKET_NAME;
-    CLOUDFRONT_ORIGIN_SHIELD_REGION = this.region ||
-      this.node.tryGetContext("CLOUDFRONT_ORIGIN_SHIELD_REGION") ||
-      CLOUDFRONT_ORIGIN_SHIELD_REGION;
     CLOUDFRONT_CORS_ENABLED =
       this.node.tryGetContext("CLOUDFRONT_CORS_ENABLED") ||
       CLOUDFRONT_CORS_ENABLED;
@@ -87,46 +78,6 @@ export class ImageOptimizationStack extends Stack {
       this.node.tryGetContext("LAMBDA_TIMEOUT") || LAMBDA_TIMEOUT;
     MAX_IMAGE_SIZE =
       this.node.tryGetContext("MAX_IMAGE_SIZE") || MAX_IMAGE_SIZE;
-    DEPLOY_SAMPLE_WEBSITE =
-      this.node.tryGetContext("DEPLOY_SAMPLE_WEBSITE") || DEPLOY_SAMPLE_WEBSITE;
-
-    // deploy a sample website for testing if required
-    if (DEPLOY_SAMPLE_WEBSITE === "true") {
-      const sampleWebsiteBucket = new s3.Bucket(
-        this,
-        "s3-sample-website-bucket",
-        {
-          removalPolicy: RemovalPolicy.DESTROY,
-          blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-          encryption: s3.BucketEncryption.S3_MANAGED,
-          enforceSSL: true,
-          autoDeleteObjects: true,
-        }
-      );
-
-      const sampleWebsiteDelivery = new cloudfront.Distribution(
-        this,
-        "websiteDeliveryDistribution",
-        {
-          comment: "image optimization - sample website",
-          defaultRootObject: "index.html",
-          defaultBehavior: {
-            origin: origins.S3BucketOrigin.withOriginAccessControl(sampleWebsiteBucket),
-            viewerProtocolPolicy:
-              cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          },
-        }
-      );
-
-      new CfnOutput(this, "SampleWebsiteDomain", {
-        description: "Sample website domain",
-        value: sampleWebsiteDelivery.distributionDomainName,
-      });
-      new CfnOutput(this, "SampleWebsiteS3Bucket", {
-        description: "S3 bucket use by the sample website",
-        value: sampleWebsiteBucket.bucketName,
-      });
-    }
 
     // For the bucket having original images, either use an external one, or create one with some samples photos.
     let originalImageBucket;
@@ -231,12 +182,8 @@ export class ImageOptimizationStack extends Stack {
 
     if (transformedImageBucket) {
       imageOrigin = new origins.OriginGroup({
-        primaryOrigin: origins.S3BucketOrigin.withOriginAccessControl(transformedImageBucket, {
-          originShieldRegion: CLOUDFRONT_ORIGIN_SHIELD_REGION,
-        }),
-        fallbackOrigin: new origins.HttpOrigin(imageProcessingDomainName, {
-          originShieldRegion: CLOUDFRONT_ORIGIN_SHIELD_REGION,
-        }),
+        primaryOrigin: origins.S3BucketOrigin.withOriginAccessControl(transformedImageBucket),
+        fallbackOrigin: new origins.HttpOrigin(imageProcessingDomainName),
         fallbackStatusCodes: [403, 500, 503, 504],
       });
 
@@ -247,9 +194,7 @@ export class ImageOptimizationStack extends Stack {
       });
       iamPolicyStatements.push(s3WriteTransformedImagesPolicy);
     } else {
-      imageOrigin = new origins.HttpOrigin(imageProcessingDomainName, {
-        originShieldRegion: CLOUDFRONT_ORIGIN_SHIELD_REGION,
-      });
+      imageOrigin = new origins.HttpOrigin(imageProcessingDomainName);
     }
 
     // attach iam policy to the role assumed by Lambda
