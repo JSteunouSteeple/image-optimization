@@ -19,6 +19,7 @@ import {
 import { CfnDistribution, type DistributionProps } from "aws-cdk-lib/aws-cloudfront";
 import { Construct } from "constructs";
 import "dotenv/config";
+import { readFileSync } from 'node:fs'
 
 // Stack Parameters
 
@@ -203,6 +204,21 @@ export class ImageOptimizationStack extends Stack {
       functionName: `urlRewriteFunction${this.node.addr}`,
     });
 
+    // keys for CloudFront
+    const pubKey = new cloudfront.PublicKey(this, `public-key-${this.stackName}`, {
+      encodedKey: readFileSync('public-key.pem').toString(),
+      comment: 'Key used in image stack poc',
+    })
+    const keyGroup = new cloudfront.KeyGroup(this, `groupkey-${this.stackName}`, {
+      items: [pubKey],
+      comment: 'Group of keys used in image stack poc'
+    })
+
+    new CfnOutput(this, 'KeyPairId', {
+      description: 'CF public key id',
+      value: pubKey.publicKeyId
+    })
+
     let imageDeliveryCacheBehaviorConfig: DistributionProps['defaultBehavior'] = {
       origin: imageOrigin,
       viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
@@ -222,6 +238,7 @@ export class ImageOptimizationStack extends Stack {
           function: urlRewriteFunction,
         },
       ],
+      trustedKeyGroups: [keyGroup]
     };
 
     if (CLOUDFRONT_CORS_ENABLED === "true") {
