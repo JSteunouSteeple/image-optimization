@@ -16,7 +16,7 @@ import {
   CfnOutput,
   aws_logs as logs,
 } from "aws-cdk-lib";
-import { CfnDistribution } from "aws-cdk-lib/aws-cloudfront";
+import { CfnDistribution, type DistributionProps } from "aws-cdk-lib/aws-cloudfront";
 import { Construct } from "constructs";
 import "dotenv/config";
 
@@ -37,15 +37,6 @@ let MAX_IMAGE_SIZE = "4700000";
 // Lambda Parameters
 let LAMBDA_MEMORY = "1500";
 let LAMBDA_TIMEOUT = "60";
-
-type ImageDeliveryCacheBehaviorConfig = {
-  origin: any;
-  compress: any;
-  viewerProtocolPolicy: any;
-  cachePolicy: any;
-  functionAssociations: any;
-  responseHeadersPolicy?: any;
-};
 
 type LambdaEnv = {
   originalImageBucketName: string;
@@ -212,7 +203,7 @@ export class ImageOptimizationStack extends Stack {
       functionName: `urlRewriteFunction${this.node.addr}`,
     });
 
-    const imageDeliveryCacheBehaviorConfig: ImageDeliveryCacheBehaviorConfig = {
+    let imageDeliveryCacheBehaviorConfig: DistributionProps['defaultBehavior'] = {
       origin: imageOrigin,
       viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
       compress: false,
@@ -261,9 +252,12 @@ export class ImageOptimizationStack extends Stack {
           },
         }
       );
-      imageDeliveryCacheBehaviorConfig.responseHeadersPolicy =
-        imageResponseHeadersPolicy;
+      imageDeliveryCacheBehaviorConfig = {
+        ...imageDeliveryCacheBehaviorConfig,
+        responseHeadersPolicy: imageResponseHeadersPolicy
+      }
     }
+
     const imageDelivery = new cloudfront.Distribution(
       this,
       "imageDeliveryDistribution",
